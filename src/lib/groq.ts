@@ -2,7 +2,7 @@ import "server-only";
 import type { TranslationResult } from "./types";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-const DEFAULT_MODEL = "llama-3.3-70b-versatile";
+const DEFAULT_MODEL = "openai/gpt-oss-120b";
 
 export class GroqError extends Error {
   constructor(
@@ -43,7 +43,8 @@ export async function translateTerm(term: string): Promise<TranslationResult> {
       body: JSON.stringify({
         model: process.env.GROQ_MODEL || DEFAULT_MODEL,
         temperature: 0.2,
-        max_tokens: 300,
+        max_tokens: 1024,
+        reasoning_effort: "low",
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
@@ -82,7 +83,11 @@ export async function translateTerm(term: string): Promise<TranslationResult> {
     throw new GroqError("Groq вернул невалидный JSON", 502);
   }
 
-  const translation = String(parsed.translation ?? "").trim();
+  const translation = (
+    Array.isArray(parsed.translation)
+      ? parsed.translation.join(", ")
+      : String(parsed.translation ?? "")
+  ).trim();
   if (!translation) throw new GroqError("Groq не вернул перевод", 502);
 
   const clean = (v: unknown): string | null => {
