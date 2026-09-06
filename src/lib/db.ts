@@ -29,6 +29,7 @@ function migrate(db: Database.Database): void {
       term               TEXT    NOT NULL,
       translation        TEXT    NOT NULL DEFAULT '',
       translation_source TEXT    NOT NULL DEFAULT 'user',
+      kind               TEXT    NOT NULL DEFAULT 'word',
       note               TEXT    NOT NULL DEFAULT '',
       repetitions        INTEGER NOT NULL DEFAULT 0,
       ease_factor        REAL    NOT NULL DEFAULT 2.5,
@@ -55,4 +56,13 @@ function migrate(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_reviews_word ON reviews (word_id);
     CREATE INDEX IF NOT EXISTS idx_reviews_at   ON reviews (reviewed_at);
   `);
+
+  const columns = db
+    .prepare(`PRAGMA table_info(words)`)
+    .all() as { name: string }[];
+  if (!columns.some((c) => c.name === "kind")) {
+    db.exec(
+      `ALTER TABLE words ADD COLUMN kind TEXT NOT NULL DEFAULT 'word'`,
+    );
+  }
 }

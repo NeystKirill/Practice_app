@@ -1,5 +1,5 @@
 import "server-only";
-import type { TranslationResult } from "./types";
+import type { TranslationResult, WordKind } from "./types";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const DEFAULT_MODEL = "openai/gpt-oss-120b";
@@ -14,7 +14,7 @@ export class GroqError extends Error {
   }
 }
 
-const SYSTEM_PROMPT = `Ты — англо-русский словарь. Пользователь присылает английское слово или фразу.
+const WORD_PROMPT = `Ты — англо-русский словарь. Пользователь присылает английское слово или короткую фразу.
 Верни СТРОГО JSON без markdown:
 {
   "translation": "перевод на русский, до 3 самых частых значений через запятую",
@@ -23,7 +23,19 @@ const SYSTEM_PROMPT = `Ты — англо-русский словарь. Пол
 }
 Только перевод, ничего не выдумывай, никаких пояснений вне JSON.`;
 
-export async function translateTerm(term: string): Promise<TranslationResult> {
+const PHRASE_PROMPT = `Ты — переводчик. Пользователь присылает английское предложение или фразу.
+Верни СТРОГО JSON без markdown:
+{
+  "translation": "естественный перевод предложения на русский",
+  "transcription": null,
+  "part_of_speech": null
+}
+Переводи цельно и естественно, никаких пояснений вне JSON.`;
+
+export async function translateTerm(
+  term: string,
+  kind: WordKind = "word",
+): Promise<TranslationResult> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     throw new GroqError(
@@ -47,7 +59,10 @@ export async function translateTerm(term: string): Promise<TranslationResult> {
         reasoning_effort: "low",
         response_format: { type: "json_object" },
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          {
+            role: "system",
+            content: kind === "phrase" ? PHRASE_PROMPT : WORD_PROMPT,
+          },
           { role: "user", content: term },
         ],
       }),

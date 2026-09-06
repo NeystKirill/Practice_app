@@ -1,17 +1,19 @@
 import { z } from "zod";
 
 export const createWordSchema = z.object({
-  term: z.string().trim().min(1, "Введите слово").max(200),
-  translation: z.string().trim().max(500).optional().default(""),
+  term: z.string().trim().min(1, "Введите слово или предложение").max(600),
+  translation: z.string().trim().max(1000).optional().default(""),
   translationSource: z.enum(["user", "ai"]).optional().default("user"),
+  kind: z.enum(["word", "phrase"]).optional().default("word"),
   note: z.string().trim().max(1000).optional().default(""),
 });
 
 export const updateWordSchema = z
   .object({
-    term: z.string().trim().min(1).max(200),
-    translation: z.string().trim().max(500),
+    term: z.string().trim().min(1).max(600),
+    translation: z.string().trim().max(1000),
     translationSource: z.enum(["user", "ai"]),
+    kind: z.enum(["word", "phrase"]),
     note: z.string().trim().max(1000),
   })
   .partial()
@@ -23,7 +25,8 @@ export const gradeSchema = z.object({
 });
 
 export const translateSchema = z.object({
-  term: z.string().trim().min(1, "Введите слово").max(200),
+  term: z.string().trim().min(1, "Введите слово или предложение").max(600),
+  kind: z.enum(["word", "phrase"]).optional().default("word"),
 });
 
 export type CreateWordInput = z.infer<typeof createWordSchema>;

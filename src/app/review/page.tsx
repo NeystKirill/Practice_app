@@ -128,11 +128,23 @@ export default function ReviewPage() {
       </div>
 
       <div className="rounded-2xl border border-border bg-card p-8 text-center">
-        <div className="text-3xl font-semibold">{current.term}</div>
+        <div
+          className={
+            current.kind === "phrase"
+              ? "text-xl font-medium"
+              : "text-3xl font-semibold"
+          }
+          style={{ whiteSpace: "pre-wrap" }}
+        >
+          {current.term}
+        </div>
 
         {revealed ? (
           <div className="mt-4 space-y-1">
-            <div className="text-xl">
+            <div
+              className={current.kind === "phrase" ? "text-lg" : "text-xl"}
+              style={{ whiteSpace: "pre-wrap" }}
+            >
               {current.translation || (
                 <span className="italic text-muted">перевод не задан</span>
               )}

@@ -1,4 +1,4 @@
-import type { Stats, TranslationResult, Word } from "./types";
+import type { Stats, TranslationResult, Word, WordKind } from "./types";
 
 async function req<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -22,6 +22,7 @@ export const api = {
     term: string;
     translation?: string;
     translationSource?: "user" | "ai";
+    kind?: WordKind;
     note?: string;
   }) => req<{ word: Word }>("/api/words", {
     method: "POST",
@@ -34,6 +35,7 @@ export const api = {
       term: string;
       translation: string;
       translationSource: "user" | "ai";
+      kind: WordKind;
       note: string;
     }>,
   ) =>
@@ -45,10 +47,10 @@ export const api = {
   deleteWord: (id: number) =>
     req<{ ok: true }>(`/api/words/${id}`, { method: "DELETE" }),
 
-  translate: (term: string) =>
+  translate: (term: string, kind: WordKind = "word") =>
     req<TranslationResult>("/api/translate", {
       method: "POST",
-      body: JSON.stringify({ term }),
+      body: JSON.stringify({ term, kind }),
     }),
 
   getQueue: (limit = 30) =>

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
-import type { Word } from "@/lib/types";
+import type { Word, WordKind } from "@/lib/types";
 
 export default function WordsPage() {
   const [words, setWords] = useState<Word[]>([]);
@@ -31,16 +31,17 @@ export default function WordsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Словарь</h1>
         <p className="mt-1 text-sm text-muted">
-          {words.length} {plural(words.length, ["слово", "слова", "слов"])}
+          {words.length}{" "}
+          {plural(words.length, ["карточка", "карточки", "карточек"])}
         </p>
       </div>
 
-      <AddWordForm onAdded={() => load(search.trim() || undefined)} />
+      <AddCardForm onAdded={() => load(search.trim() || undefined)} />
 
       <input
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder="Поиск по слову или переводу…"
+        placeholder="Поиск по тексту или переводу…"
         className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:border-accent"
       />
 
@@ -50,7 +51,7 @@ export default function WordsPage() {
       ) : (
         <ul className="space-y-2">
           {words.map((w) => (
-            <WordRow
+            <CardRow
               key={w.id}
               word={w}
               onChange={() => load(search.trim() || undefined)}
@@ -62,7 +63,38 @@ export default function WordsPage() {
   );
 }
 
-function AddWordForm({ onAdded }: { onAdded: () => void }) {
+function KindToggle({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: WordKind;
+  onChange: (k: WordKind) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="inline-flex rounded-lg border border-border p-0.5 text-sm">
+      {(["word", "phrase"] as const).map((k) => (
+        <button
+          key={k}
+          type="button"
+          disabled={disabled}
+          onClick={() => onChange(k)}
+          className={`rounded-md px-3 py-1 transition-colors disabled:opacity-50 ${
+            value === k
+              ? "bg-accent text-white"
+              : "text-muted hover:text-foreground"
+          }`}
+        >
+          {k === "word" ? "Слово" : "Предложение"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function AddCardForm({ onAdded }: { onAdded: () => void }) {
+  const [kind, setKind] = useState<WordKind>("word");
   const [term, setTerm] = useState("");
   const [translation, setTranslation] = useState("");
   const [aiFilled, setAiFilled] = useState(false);
@@ -70,17 +102,22 @@ function AddWordForm({ onAdded }: { onAdded: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
 
+  const isPhrase = kind === "phrase";
+
   async function askAi() {
     if (!term.trim()) return;
     setBusy("ai");
     setError(null);
     setHint(null);
     try {
-      const r = await api.translate(term.trim());
+      const r = await api.translate(term.trim(), kind);
       setTranslation(r.translation);
       setAiFilled(true);
       setHint(
-        [r.partOfSpeech, r.transcription].filter(Boolean).join(" · ") || null,
+        isPhrase
+          ? null
+          : [r.partOfSpeech, r.transcription].filter(Boolean).join(" · ") ||
+              null,
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Ошибка перевода");
@@ -99,6 +136,7 @@ function AddWordForm({ onAdded }: { onAdded: () => void }) {
         term: term.trim(),
         translation: translation.trim(),
         translationSource: aiFilled && translation.trim() ? "ai" : "user",
+        kind,
       });
       setTerm("");
       setTranslation("");
@@ -112,30 +150,69 @@ function AddWordForm({ onAdded }: { onAdded: () => void }) {
     }
   }
 
+  const fieldClass =
+    "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent";
+
   return (
     <form
       onSubmit={save}
       className="space-y-3 rounded-xl border border-border bg-card p-4"
     >
-      <div className="grid gap-3 sm:grid-cols-2">
-        <input
-          value={term}
-          onChange={(e) => {
-            setTerm(e.target.value);
-            setAiFilled(false);
-          }}
-          placeholder="English word"
-          className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
-        />
-        <input
-          value={translation}
-          onChange={(e) => {
-            setTranslation(e.target.value);
-            setAiFilled(false);
-          }}
-          placeholder="перевод (свой или от ИИ)"
-          className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
-        />
+      <KindToggle
+        value={kind}
+        onChange={(k) => {
+          setKind(k);
+          setAiFilled(false);
+          setHint(null);
+        }}
+        disabled={busy !== null}
+      />
+
+      <div className={isPhrase ? "space-y-3" : "grid gap-3 sm:grid-cols-2"}>
+        {isPhrase ? (
+          <textarea
+            value={term}
+            onChange={(e) => {
+              setTerm(e.target.value);
+              setAiFilled(false);
+            }}
+            rows={2}
+            placeholder="English sentence"
+            className={fieldClass}
+          />
+        ) : (
+          <input
+            value={term}
+            onChange={(e) => {
+              setTerm(e.target.value);
+              setAiFilled(false);
+            }}
+            placeholder="English word"
+            className={fieldClass}
+          />
+        )}
+        {isPhrase ? (
+          <textarea
+            value={translation}
+            onChange={(e) => {
+              setTranslation(e.target.value);
+              setAiFilled(false);
+            }}
+            rows={2}
+            placeholder="перевод предложения (свой или от ИИ)"
+            className={fieldClass}
+          />
+        ) : (
+          <input
+            value={translation}
+            onChange={(e) => {
+              setTranslation(e.target.value);
+              setAiFilled(false);
+            }}
+            placeholder="перевод (свой или от ИИ)"
+            className={fieldClass}
+          />
+        )}
       </div>
 
       {hint && <p className="text-xs text-muted">{hint}</p>}
@@ -155,25 +232,24 @@ function AddWordForm({ onAdded }: { onAdded: () => void }) {
           disabled={!term.trim() || busy !== null}
           className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-background disabled:opacity-50"
         >
-          {busy === "ai" ? "ИИ думает…" : "Перевод от ИИ"}
+          {busy === "ai"
+            ? "ИИ думает…"
+            : isPhrase
+              ? "Перевести предложение"
+              : "Перевод от ИИ"}
         </button>
       </div>
     </form>
   );
 }
 
-function WordRow({
-  word,
-  onChange,
-}: {
-  word: Word;
-  onChange: () => void;
-}) {
+function CardRow({ word, onChange }: { word: Word; onChange: () => void }) {
   const [editing, setEditing] = useState(false);
   const [translation, setTranslation] = useState(word.translation);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const isPhrase = word.kind === "phrase";
   const due = useMemo(() => formatDue(word.dueAt), [word.dueAt]);
 
   async function saveEdit() {
@@ -197,7 +273,7 @@ function WordRow({
     setBusy(true);
     setError(null);
     try {
-      const r = await api.translate(word.term);
+      const r = await api.translate(word.term, word.kind);
       await api.updateWord(word.id, {
         translation: r.translation,
         translationSource: "ai",
@@ -227,7 +303,19 @@ function WordRow({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="font-medium">{word.term}</span>
+            <span
+              className={
+                isPhrase ? "text-sm font-medium" : "font-medium"
+              }
+              style={isPhrase ? { whiteSpace: "pre-wrap" } : undefined}
+            >
+              {word.term}
+            </span>
+            {isPhrase && (
+              <span className="rounded bg-foreground/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted">
+                фраза
+              </span>
+            )}
             {word.translationSource === "ai" && (
               <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-accent">
                 ИИ
@@ -236,15 +324,24 @@ function WordRow({
           </div>
           {editing ? (
             <div className="mt-2 flex gap-2">
-              <input
-                value={translation}
-                onChange={(e) => setTranslation(e.target.value)}
-                className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-sm outline-none focus:border-accent"
-              />
+              {isPhrase ? (
+                <textarea
+                  value={translation}
+                  onChange={(e) => setTranslation(e.target.value)}
+                  rows={2}
+                  className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-sm outline-none focus:border-accent"
+                />
+              ) : (
+                <input
+                  value={translation}
+                  onChange={(e) => setTranslation(e.target.value)}
+                  className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-sm outline-none focus:border-accent"
+                />
+              )}
               <button
                 onClick={saveEdit}
                 disabled={busy}
-                className="rounded-md bg-accent px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
+                className="h-fit rounded-md bg-accent px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
               >
                 ОК
               </button>
@@ -253,13 +350,16 @@ function WordRow({
                   setEditing(false);
                   setTranslation(word.translation);
                 }}
-                className="rounded-md border border-border px-3 py-1 text-xs"
+                className="h-fit rounded-md border border-border px-3 py-1 text-xs"
               >
                 Отмена
               </button>
             </div>
           ) : (
-            <p className="mt-0.5 text-sm text-muted">
+            <p
+              className="mt-0.5 text-sm text-muted"
+              style={{ whiteSpace: "pre-wrap" }}
+            >
               {word.translation || <span className="italic">нет перевода</span>}
             </p>
           )}

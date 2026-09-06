@@ -6,8 +6,8 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
-    const { term } = await parseBody(req, translateSchema);
-    const result = await translateTerm(term);
+    const { term, kind } = await parseBody(req, translateSchema);
+    const result = await translateTerm(term, kind);
     return Response.json(result);
   } catch (err) {
     if (isResponse(err)) return err;

@@ -10,6 +10,7 @@ function toWord(row: WordRow): Word {
     term: row.term,
     translation: row.translation,
     translationSource: row.translation_source,
+    kind: row.kind,
     note: row.note,
     repetitions: row.repetitions,
     easeFactor: row.ease_factor,
@@ -29,7 +30,7 @@ const startOfToday = (): number => {
 
 export class DuplicateTermError extends Error {
   constructor(term: string) {
-    super(`Слово «${term}» уже есть в словаре`);
+    super(`«${term}» уже есть в словаре`);
     this.name = "DuplicateTermError";
   }
 }
@@ -66,15 +67,16 @@ export function createWord(input: CreateWordInput): Word {
     const info = db
       .prepare(
         `INSERT INTO words
-           (term, translation, translation_source, note,
+           (term, translation, translation_source, kind, note,
             repetitions, ease_factor, interval_days, due_at, created_at, updated_at)
-         VALUES (@term, @translation, @translationSource, @note,
+         VALUES (@term, @translation, @translationSource, @kind, @note,
                  @repetitions, @easeFactor, @intervalDays, @dueAt, @now, @now)`,
       )
       .run({
         term: input.term,
         translation: input.translation,
         translationSource: input.translationSource,
+        kind: input.kind,
         note: input.note,
         repetitions: srs.repetitions,
         easeFactor: srs.easeFactor,
@@ -99,6 +101,7 @@ export function updateWord(id: number, patch: UpdateWordInput): Word | null {
     term: patch.term ?? existing.term,
     translation: patch.translation ?? existing.translation,
     translationSource: patch.translationSource ?? existing.translationSource,
+    kind: patch.kind ?? existing.kind,
     note: patch.note ?? existing.note,
     updatedAt: Date.now(),
     id,
@@ -111,6 +114,7 @@ export function updateWord(id: number, patch: UpdateWordInput): Word | null {
            term = @term,
            translation = @translation,
            translation_source = @translationSource,
+           kind = @kind,
            note = @note,
            updated_at = @updatedAt
          WHERE id = @id`,
@@ -198,11 +202,16 @@ export function stats(): Stats {
     .prepare(`SELECT interval_days FROM words`)
     .all() as { interval_days: number }[];
   const learned = rows.filter((r) => isLearned(r.interval_days)).length;
+  const phrases = (
+    db
+      .prepare(`SELECT COUNT(*) AS n FROM words WHERE kind = 'phrase'`)
+      .get() as { n: number }
+  ).n;
   const reviewedToday = (
     db
       .prepare(`SELECT COUNT(*) AS n FROM reviews WHERE reviewed_at >= ?`)
       .get(startOfToday()) as { n: number }
   ).n;
 
-  return { total, due, learned, fresh, reviewedToday };
+  return { total, due, learned, fresh, phrases, reviewedToday };
 }

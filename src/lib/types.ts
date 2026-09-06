@@ -1,5 +1,7 @@
 export type TranslationSource = "user" | "ai";
 
+export type WordKind = "word" | "phrase";
+
 export type Grade = 0 | 1 | 2 | 3 | 4 | 5;
 
 export interface Word {
@@ -7,6 +9,7 @@ export interface Word {
   term: string;
   translation: string;
   translationSource: TranslationSource;
+  kind: WordKind;
   note: string;
   repetitions: number;
   easeFactor: number;
@@ -22,6 +25,7 @@ export interface WordRow {
   term: string;
   translation: string;
   translation_source: TranslationSource;
+  kind: WordKind;
   note: string;
   repetitions: number;
   ease_factor: number;
@@ -43,5 +47,6 @@ export interface Stats {
   due: number;
   learned: number;
   fresh: number;
+  phrases: number;
   reviewedToday: number;
 }

@@ -28,6 +28,7 @@ export default function HomePage() {
         <Stat label="Всего слов" value={s.total} />
         <Stat label="К повторению сейчас" value={s.due} />
         <Stat label="Новых" value={s.fresh} />
+        <Stat label="Предложений" value={s.phrases} />
         <Stat label="Выучено (интервал ≥ 21 дн.)" value={s.learned} />
         <Stat label="Повторено сегодня" value={s.reviewedToday} />
       </section>
