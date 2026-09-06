@@ -1,38 +1,113 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f7f7f8;
-  --foreground: #18181b;
-  --card: #ffffff;
-  --border: #e4e4e7;
-  --muted: #71717a;
-  --accent: #4f46e5;
+  --background: oklch(0.984 0.002 260);
+  --foreground: oklch(0.23 0.012 265);
+  --card: oklch(1 0 0);
+  --elevated: oklch(0.965 0.003 260);
+  --border: oklch(0.915 0.004 260);
+  --muted: oklch(0.5 0.011 265);
+  --accent: oklch(0.53 0.185 274);
+  --accent-contrast: oklch(0.99 0 0);
+  --accent-soft: oklch(0.95 0.028 274);
+  --success: oklch(0.6 0.13 155);
+  --warning: oklch(0.68 0.13 65);
+  --danger: oklch(0.57 0.2 25);
+
+  --radius: 0.75rem;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --shadow-sm: 0 1px 2px oklch(0.2 0.02 265 / 0.06);
+  --shadow-md:
+    0 4px 12px oklch(0.2 0.02 265 / 0.08), 0 1px 3px oklch(0.2 0.02 265 / 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: oklch(0.17 0.01 265);
+    --foreground: oklch(0.95 0.005 265);
+    --card: oklch(0.212 0.012 265);
+    --elevated: oklch(0.252 0.014 265);
+    --border: oklch(0.3 0.014 265);
+    --muted: oklch(0.7 0.012 265);
+    --accent: oklch(0.72 0.15 274);
+    --accent-contrast: oklch(0.16 0.02 265);
+    --accent-soft: oklch(0.3 0.055 274);
+    --success: oklch(0.7 0.13 155);
+    --warning: oklch(0.76 0.13 70);
+    --danger: oklch(0.68 0.17 25);
+    --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.3);
+    --shadow-md: 0 6px 20px oklch(0 0 0 / 0.35), 0 1px 3px oklch(0 0 0 / 0.3);
+  }
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
+  --color-elevated: var(--elevated);
   --color-border: var(--border);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
+  --color-accent-contrast: var(--accent-contrast);
+  --color-accent-soft: var(--accent-soft);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --radius-xl: var(--radius);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-serif);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0b0b0f;
-    --foreground: #ededed;
-    --card: #17171c;
-    --border: #2a2a31;
-    --muted: #9a9aa5;
-    --accent: #818cf8;
-  }
+* {
+  border-color: var(--border);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--foreground);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rise {
+  animation: rise 0.32s var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

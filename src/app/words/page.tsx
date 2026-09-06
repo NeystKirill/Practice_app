@@ -1,8 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Button, Field, inputClass } from "@/components/ui";
 import { api } from "@/lib/api";
 import type { Word, WordKind } from "@/lib/types";
+
+function refreshNav() {
+  window.dispatchEvent(new Event("practice:refresh"));
+}
 
 export default function WordsPage() {
   const [words, setWords] = useState<Word[]>([]);
@@ -22,43 +27,72 @@ export default function WordsPage() {
   }, []);
 
   useEffect(() => {
-    const t = setTimeout(() => load(search.trim() || undefined), search ? 250 : 0);
+    const t = setTimeout(
+      () => load(search.trim() || undefined),
+      search ? 250 : 0,
+    );
     return () => clearTimeout(t);
   }, [search, load]);
 
+  const reload = () => load(search.trim() || undefined);
+
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Словарь</h1>
-        <p className="mt-1 text-sm text-muted">
+      <header className="space-y-1">
+        <h1 className="font-serif text-3xl">Словарь</h1>
+        <p className="text-sm text-muted">
           {words.length}{" "}
           {plural(words.length, ["карточка", "карточки", "карточек"])}
         </p>
-      </div>
+      </header>
 
-      <AddCardForm onAdded={() => load(search.trim() || undefined)} />
-
-      <input
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Поиск по тексту или переводу…"
-        className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:border-accent"
+      <AddCardForm
+        onAdded={() => {
+          reload();
+          refreshNav();
+        }}
       />
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
-      {loading && words.length === 0 ? (
-        <p className="text-sm text-muted">Загрузка…</p>
-      ) : (
-        <ul className="space-y-2">
-          {words.map((w) => (
-            <CardRow
-              key={w.id}
-              word={w}
-              onChange={() => load(search.trim() || undefined)}
-            />
-          ))}
-        </ul>
-      )}
+      <div className="space-y-4">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Поиск по тексту или переводу…"
+          className={inputClass}
+        />
+
+        {error && <p className="text-sm text-danger">{error}</p>}
+
+        {loading && words.length === 0 ? (
+          <ul className="space-y-2">
+            {[0, 1, 2].map((i) => (
+              <li
+                key={i}
+                className="h-[4.5rem] animate-pulse rounded-xl bg-elevated"
+              />
+            ))}
+          </ul>
+        ) : words.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted">
+            {search
+              ? "Ничего не найдено."
+              : "Пока пусто. Добавьте слово или предложение выше."}
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {words.map((w) => (
+              <CardRow
+                key={w.id}
+                word={w}
+                onChange={() => {
+                  reload();
+                  refreshNav();
+                }}
+              />
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
@@ -73,16 +107,16 @@ function KindToggle({
   disabled?: boolean;
 }) {
   return (
-    <div className="inline-flex rounded-lg border border-border p-0.5 text-sm">
+    <div className="inline-flex rounded-lg bg-elevated p-0.5 text-sm">
       {(["word", "phrase"] as const).map((k) => (
         <button
           key={k}
           type="button"
           disabled={disabled}
           onClick={() => onChange(k)}
-          className={`rounded-md px-3 py-1 transition-colors disabled:opacity-50 ${
+          className={`rounded-md px-3 py-1 font-medium transition-colors disabled:opacity-50 ${
             value === k
-              ? "bg-accent text-white"
+              ? "bg-card text-foreground shadow-sm"
               : "text-muted hover:text-foreground"
           }`}
         >
@@ -101,8 +135,14 @@ function AddCardForm({ onAdded }: { onAdded: () => void }) {
   const [busy, setBusy] = useState<null | "ai" | "save">(null);
   const [error, setError] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
+  const [flash, setFlash] = useState(false);
 
   const isPhrase = kind === "phrase";
+
+  function resetAi() {
+    setAiFilled(false);
+    setHint(null);
+  }
 
   async function askAi() {
     if (!term.trim()) return;
@@ -116,7 +156,7 @@ function AddCardForm({ onAdded }: { onAdded: () => void }) {
       setHint(
         isPhrase
           ? null
-          : [r.partOfSpeech, r.transcription].filter(Boolean).join(" · ") ||
+          : [r.partOfSpeech, r.transcription].filter(Boolean).join("  ·  ") ||
               null,
       );
     } catch (e) {
@@ -140,8 +180,9 @@ function AddCardForm({ onAdded }: { onAdded: () => void }) {
       });
       setTerm("");
       setTranslation("");
-      setAiFilled(false);
-      setHint(null);
+      resetAi();
+      setFlash(true);
+      setTimeout(() => setFlash(false), 1600);
       onAdded();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось сохранить");
@@ -150,94 +191,100 @@ function AddCardForm({ onAdded }: { onAdded: () => void }) {
     }
   }
 
-  const fieldClass =
-    "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent";
-
   return (
     <form
       onSubmit={save}
-      className="space-y-3 rounded-xl border border-border bg-card p-4"
+      className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-sm"
     >
-      <KindToggle
-        value={kind}
-        onChange={(k) => {
-          setKind(k);
-          setAiFilled(false);
-          setHint(null);
-        }}
-        disabled={busy !== null}
-      />
-
-      <div className={isPhrase ? "space-y-3" : "grid gap-3 sm:grid-cols-2"}>
-        {isPhrase ? (
-          <textarea
-            value={term}
-            onChange={(e) => {
-              setTerm(e.target.value);
-              setAiFilled(false);
-            }}
-            rows={2}
-            placeholder="English sentence"
-            className={fieldClass}
-          />
-        ) : (
-          <input
-            value={term}
-            onChange={(e) => {
-              setTerm(e.target.value);
-              setAiFilled(false);
-            }}
-            placeholder="English word"
-            className={fieldClass}
-          />
-        )}
-        {isPhrase ? (
-          <textarea
-            value={translation}
-            onChange={(e) => {
-              setTranslation(e.target.value);
-              setAiFilled(false);
-            }}
-            rows={2}
-            placeholder="перевод предложения (свой или от ИИ)"
-            className={fieldClass}
-          />
-        ) : (
-          <input
-            value={translation}
-            onChange={(e) => {
-              setTranslation(e.target.value);
-              setAiFilled(false);
-            }}
-            placeholder="перевод (свой или от ИИ)"
-            className={fieldClass}
-          />
-        )}
+      <div className="flex items-center justify-between gap-3">
+        <KindToggle
+          value={kind}
+          onChange={(k) => {
+            setKind(k);
+            resetAi();
+          }}
+          disabled={busy !== null}
+        />
+        <span
+          className={`text-xs font-medium text-success transition-opacity duration-200 ${
+            flash ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          Добавлено ✓
+        </span>
       </div>
 
-      {hint && <p className="text-xs text-muted">{hint}</p>}
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      <div className={isPhrase ? "space-y-3" : "grid gap-3 sm:grid-cols-2"}>
+        <Field label={isPhrase ? "Предложение на английском" : "Слово"}>
+          {isPhrase ? (
+            <textarea
+              value={term}
+              onChange={(e) => {
+                setTerm(e.target.value);
+                resetAi();
+              }}
+              rows={2}
+              placeholder="Every cloud has a silver lining."
+              className={`${inputClass} resize-y`}
+            />
+          ) : (
+            <input
+              value={term}
+              onChange={(e) => {
+                setTerm(e.target.value);
+                resetAi();
+              }}
+              placeholder="resilient"
+              className={inputClass}
+              autoComplete="off"
+            />
+          )}
+        </Field>
+
+        <Field
+          label="Перевод"
+          hint={hint ?? (aiFilled ? "предложено ИИ — можно поправить" : undefined)}
+        >
+          {isPhrase ? (
+            <textarea
+              value={translation}
+              onChange={(e) => {
+                setTranslation(e.target.value);
+                setAiFilled(false);
+              }}
+              rows={2}
+              placeholder="Нет худа без добра."
+              className={`${inputClass} resize-y`}
+            />
+          ) : (
+            <input
+              value={translation}
+              onChange={(e) => {
+                setTranslation(e.target.value);
+                setAiFilled(false);
+              }}
+              placeholder="устойчивый, жизнестойкий"
+              className={inputClass}
+              autoComplete="off"
+            />
+          )}
+        </Field>
+      </div>
+
+      {error && <p className="text-sm text-danger">{error}</p>}
 
       <div className="flex flex-wrap gap-2">
-        <button
-          type="submit"
-          disabled={!term.trim() || busy !== null}
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-        >
+        <Button type="submit" disabled={!term.trim() || busy !== null}>
           {busy === "save" ? "Сохранение…" : "Добавить"}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="secondary"
           onClick={askAi}
           disabled={!term.trim() || busy !== null}
-          className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-background disabled:opacity-50"
         >
-          {busy === "ai"
-            ? "ИИ думает…"
-            : isPhrase
-              ? "Перевести предложение"
-              : "Перевод от ИИ"}
-        </button>
+          {busy === "ai" ? "ИИ переводит…" : "Перевести с ИИ"}
+        </Button>
       </div>
     </form>
   );
@@ -250,7 +297,13 @@ function CardRow({ word, onChange }: { word: Word; onChange: () => void }) {
   const [error, setError] = useState<string | null>(null);
 
   const isPhrase = word.kind === "phrase";
-  const due = useMemo(() => formatDue(word.dueAt), [word.dueAt]);
+  const meta = useMemo(() => {
+    const iv =
+      word.intervalDays < 1
+        ? "<1 дн"
+        : `${Math.round(word.intervalDays)} дн`;
+    return `${word.repetitions} повт · ${iv} · ${formatDue(word.dueAt)}`;
+  }, [word]);
 
   async function saveEdit() {
     setBusy(true);
@@ -299,102 +352,84 @@ function CardRow({ word, onChange }: { word: Word; onChange: () => void }) {
   }
 
   return (
-    <li className="rounded-xl border border-border bg-card p-3">
+    <li className="group rounded-xl border border-border bg-card p-3.5 transition-colors hover:border-muted/40">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex flex-wrap items-center gap-1.5">
             <span
-              className={
-                isPhrase ? "text-sm font-medium" : "font-medium"
-              }
+              className={isPhrase ? "text-sm font-medium" : "font-medium"}
               style={isPhrase ? { whiteSpace: "pre-wrap" } : undefined}
             >
               {word.term}
             </span>
             {isPhrase && (
-              <span className="rounded bg-foreground/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted">
+              <span className="rounded bg-elevated px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted">
                 фраза
               </span>
             )}
             {word.translationSource === "ai" && (
-              <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-accent">
+              <span className="rounded bg-accent-soft px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-accent">
                 ИИ
               </span>
             )}
           </div>
+
           {editing ? (
-            <div className="mt-2 flex gap-2">
+            <div className="flex gap-2 pt-1">
               {isPhrase ? (
                 <textarea
                   value={translation}
                   onChange={(e) => setTranslation(e.target.value)}
                   rows={2}
-                  className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-sm outline-none focus:border-accent"
+                  className={`${inputClass} flex-1`}
                 />
               ) : (
                 <input
                   value={translation}
                   onChange={(e) => setTranslation(e.target.value)}
-                  className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-sm outline-none focus:border-accent"
+                  className={`${inputClass} flex-1`}
                 />
               )}
-              <button
-                onClick={saveEdit}
-                disabled={busy}
-                className="h-fit rounded-md bg-accent px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
-              >
+              <Button size="sm" onClick={saveEdit} disabled={busy}>
                 ОК
-              </button>
-              <button
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
                 onClick={() => {
                   setEditing(false);
                   setTranslation(word.translation);
                 }}
-                className="h-fit rounded-md border border-border px-3 py-1 text-xs"
               >
                 Отмена
-              </button>
+              </Button>
             </div>
           ) : (
             <p
-              className="mt-0.5 text-sm text-muted"
+              className="text-sm text-muted"
               style={{ whiteSpace: "pre-wrap" }}
             >
-              {word.translation || <span className="italic">нет перевода</span>}
+              {word.translation || (
+                <span className="italic">нет перевода</span>
+              )}
             </p>
           )}
-          <p className="mt-1 text-xs text-muted">
-            повтор {word.repetitions} · интервал{" "}
-            {word.intervalDays < 1
-              ? "<1 дн."
-              : `${Math.round(word.intervalDays)} дн.`}{" "}
-            · {due}
-          </p>
-          {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+
+          <p className="text-xs text-muted/80 tabular-nums">{meta}</p>
+          {error && <p className="text-xs text-danger">{error}</p>}
         </div>
 
         {!editing && (
-          <div className="flex shrink-0 flex-col gap-1 text-xs">
-            <button
-              onClick={() => setEditing(true)}
-              className="rounded-md border border-border px-2 py-1 hover:bg-background"
-            >
-              Изменить
-            </button>
-            <button
-              onClick={aiRetranslate}
-              disabled={busy}
-              className="rounded-md border border-border px-2 py-1 hover:bg-background disabled:opacity-50"
-            >
-              ИИ
-            </button>
-            <button
-              onClick={remove}
-              disabled={busy}
-              className="rounded-md border border-border px-2 py-1 text-red-500 hover:bg-background disabled:opacity-50"
-            >
-              Удалить
-            </button>
+          <div className="flex shrink-0 gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+            <IconBtn label="Изменить" onClick={() => setEditing(true)}>
+              ✎
+            </IconBtn>
+            <IconBtn label="Перевести с ИИ" onClick={aiRetranslate} disabled={busy}>
+              ✦
+            </IconBtn>
+            <IconBtn label="Удалить" onClick={remove} disabled={busy} danger>
+              ✕
+            </IconBtn>
           </div>
         )}
       </div>
@@ -402,9 +437,38 @@ function CardRow({ word, onChange }: { word: Word; onChange: () => void }) {
   );
 }
 
+function IconBtn({
+  label,
+  children,
+  onClick,
+  disabled,
+  danger,
+}: {
+  label: string;
+  children: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex h-7 w-7 items-center justify-center rounded-md border border-border text-sm transition-colors hover:bg-elevated disabled:opacity-40 ${
+        danger ? "text-danger hover:bg-danger hover:text-white" : "text-muted"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
 function formatDue(dueAt: number): string {
   const diff = dueAt - Date.now();
-  if (diff <= 0) return "готово к повторению";
+  if (diff <= 0) return "к повторению";
   const days = Math.round(diff / 86_400_000);
   if (days >= 1) return `через ${days} ${plural(days, ["день", "дня", "дней"])}`;
   const mins = Math.round(diff / 60_000);

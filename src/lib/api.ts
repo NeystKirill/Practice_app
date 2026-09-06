@@ -53,6 +53,8 @@ export const api = {
       body: JSON.stringify({ term, kind }),
     }),
 
+  getStats: () => req<{ stats: Stats }>("/api/stats").then((r) => r.stats),
+
   getQueue: (limit = 30) =>
     req<{ queue: Word[]; stats: Stats }>(`/api/review?limit=${limit}`),
 
