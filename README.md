@@ -25,12 +25,12 @@
 
 ```bash
 npm install
-cp .env.example .env.local   # и вписать GROQ_API_KEY
-npm run dev                  # http://localhost:3000
+cp .env.example .env.local
+npm run dev
 ```
 
-Ключ Groq: https://console.groq.com/keys. Без ключа всё работает, кроме
-кнопок перевода ИИ.
+Впишите `GROQ_API_KEY` в `.env.local` (ключ: https://console.groq.com/keys),
+откройте http://localhost:3000. Без ключа работает всё, кроме кнопок перевода ИИ.
 
 ## Скрипты
 
